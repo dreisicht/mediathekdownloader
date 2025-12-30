@@ -4,12 +4,11 @@ from pathlib import Path
 
 import enlighten
 import requests
-from playwright.sync_api import sync_playwright
 
 logging.basicConfig()
 logging.root.setLevel(logging.DEBUG)
 LOG = logging.getLogger(__name__)
-OUTPUT_DIR = Path("/mnt/hdd/Bilder-Videos/Filme/Suits/")
+OUTPUT_DIR = Path("/mnt/hdd/Bilder-Videos/Filme/mad_men")
 LOG.setLevel(logging.INFO)
 
 
@@ -17,10 +16,6 @@ def post_process_filename(text: str) -> str:
   filename = text.split("</div>")[0]
   filename = filename.rstrip()
 
-  splitter = filename.find("(")
-  episode_name = filename[: splitter - 1]
-  episode_id = filename[splitter:]
-  filename = f"{episode_id}_{episode_name}"
   return filename.replace(" ", "_").replace("/", "-").replace("&", "--") + ".mp4"
 
 
@@ -32,7 +27,7 @@ def extract_urls_from_html(html: str) -> dict[str, str]:
     flags=re.MULTILINE | re.DOTALL,
   ):
     name = post_process_filename(match)
-    urls = re.findall(r'href="https://nrodlzdf-a.akamaihd.net/.*"', match)
+    urls = re.findall(r'href="https://arteptweb-a.akamaihd.net/.*"', match)
 
     if len(urls) != 1:
       raise RuntimeError
@@ -43,47 +38,6 @@ def extract_urls_from_html(html: str) -> dict[str, str]:
     result[name] = url
 
   return result
-
-
-def get_htmls() -> str:
-  content = set()
-
-  for page_num in range(1, 10):
-    url = f"https://mediathekviewweb.de/#query=%23Suits%20!ZDFneo&page%20S01={page_num}"
-    with sync_playwright() as p:
-      # Launch the browser
-      browser = p.chromium.launch(headless=True)
-      context = browser.new_context(user_agent="Mozilla/5.0 ...")
-      page = context.new_page()
-
-      # Navigate to the URL
-      page.goto(url, wait_until="networkidle")
-
-      # This gets the HTML AFTER the JavaScript has run
-      page_content = page.content()
-      if page_content in content:
-        return "".join(content)
-      content.add(page_content)
-
-      browser.close()
-
-  return "".join(list(content))
-
-
-def get_local_htmls() -> str:
-  htmls = [
-    "src/test/S01.html",
-    "src/test/S02.html",
-    "src/test/S03.html",
-    "src/test/S04.html",
-    "src/test/S05.html",
-    "src/test/S06.html",
-    "src/test/S07.html",
-    "src/test/S08.html",
-    "src/test/S09.html",
-  ]
-  for html in htmls:
-    yield Path(html).read_text()
 
 
 def download_video(url: str, local_file: Path) -> None:
@@ -116,23 +70,9 @@ def download_video(url: str, local_file: Path) -> None:
 
 def main_mad_men() -> None:
   for html in ("src/test/mad_men2.html", "src/test/mad_men1.html"):
-    urls = extract_urls_from_html(html)
+    urls = extract_urls_from_html(Path(html).read_text())
+    print(urls)
     for filename, url in urls.items():
-      video_path = OUTPUT_DIR / filename
-      if video_path.exists():
-        LOG.info("Skipping %s", filename)
-        continue
-
-      download_video(url, video_path)
-
-
-def main_suits() -> None:
-  for html in get_local_htmls():
-    urls = extract_urls_from_html(html)
-
-    for filename, url in urls.items():
-      # print(filename, url)
-
       video_path = OUTPUT_DIR / filename
       if video_path.exists():
         LOG.info("Skipping %s", filename)
@@ -142,4 +82,4 @@ def main_suits() -> None:
 
 
 if __name__ == "__main__":
-  main_suits()
+  main_mad_men()
